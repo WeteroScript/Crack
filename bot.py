@@ -52,12 +52,15 @@ async def get_key(cb: CallbackQuery, state: FSMContext):
         if k and k.is_active:
             return await cb.message.answer(f"У тебя уже есть ключ:\n<code>{k.key}</code>",
                                            parse_mode="HTML")
-        # генерим ключ: формат как у клиента (12 символов, напр. XXXX-XXXX-XXXX)
-        new_key = "-".join("".join(random.choices("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", k=4))
-                           for _ in range(3))
+        
+        # Генерируем ровно 12 символов (без дефисов)
+        new_key = "".join(random.choices("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", k=12))
+        
+        # Создаем ключ (is_premium теперь True по умолчанию из models.py)
         db.add(Key(key=new_key, tg_id=cb.from_user.id))
         db.commit()
-    await cb.message.answer(f"🔑 Твой ключ:\n<code>{new_key}</code>\n\n"
+        
+    await cb.message.answer(f"🔑 Твой Premium-ключ:\n<code>{new_key}</code>\n\n"
                             f"Введи его в приложении.", parse_mode="HTML")
 
 # ---------- Сбросить HWID ----------
@@ -69,10 +72,12 @@ async def reset_hwid(cb: CallbackQuery, state: FSMContext):
     with SessionLocal() as db:
         k = db.execute(select(Key).where(Key.tg_id == cb.from_user.id)).scalar_one_or_none()
         if not k:
-            return await cb.message.answer("У тебя ещё нет ключа. Сначала «Получить ключ».")
+            return await cb.message.answer("У тебя ещё нет ключа. Сначала «Получить Premium-ключ».")
         if not k.android_id:
             return await cb.message.answer("HWID и так не привязан.")
+            
         k.android_id = None
         k.device_name = None
         db.commit()
+        
     await cb.message.answer("♻️ HWID сброшен. Ключ можно активировать на другом устройстве.")
